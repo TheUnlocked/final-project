@@ -10,25 +10,18 @@ import { CreateChallenge } from "./CreateChallenge";
 import "../../css/main.css";
 import { blue, pink } from "@material-ui/core/colors";
 import { Login } from "./Login";
-import DialogProvider from "../components/DialogProvider";
-
-export interface SiteSettings {
-    theme: 'light' | 'dark';
-}
 
 const App: FunctionComponent = props => {
     // const prefersDarkTheme = useMediaQuery('(prefers-color-scheme: dark)', {noSsr: true});
     const prefersDarkTheme = false;
-    const [siteSettings, setSiteSettings] = useState({
-        theme: prefersDarkTheme ? 'dark' : 'light'
-    } as SiteSettings);
+    const [useDarkTheme, setUseDarkTheme] = useState(prefersDarkTheme);
 
     const theme = React.useMemo(() =>
         createMuiTheme({
             palette: {
                 primary: { main: blue[700] },
-                secondary: { main: pink[400] },
-                ...(siteSettings.theme === 'dark' ? {
+                secondary: { main: pink[300] },
+                ...(useDarkTheme ? {
                     type: 'dark'
                 } : 
                 {
@@ -46,15 +39,14 @@ const App: FunctionComponent = props => {
                 }
             }
         }),
-        [siteSettings],
+        [useDarkTheme],
     );
 
     return (
         <ThemeProvider theme={theme}>
-        <DialogProvider>
             <CssBaseline/>
             <Router>
-                <TopBar siteSettings={siteSettings} setSiteSettings={setSiteSettings}/>
+                <TopBar/>
                 <Switch>
                     <Route exact path="/">
                         <Home/>
@@ -63,14 +55,13 @@ const App: FunctionComponent = props => {
                         <Login/>
                     </Route>
                     <Route path="/create">
-                        <CreateChallenge siteSettings={siteSettings}/>
+                        <CreateChallenge/>
                     </Route>
                     <Route path="*">
                         <FourOhFour/>
                     </Route>
                 </Switch>
             </Router>
-        </DialogProvider>
         </ThemeProvider>
     );
 }
