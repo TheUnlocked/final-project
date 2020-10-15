@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button, Paper, TextField, Typography } from "@material-ui/core";
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Paper, TextField, Typography } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 import { FunctionComponent } from "react";
 import { handleChange } from '../util';
@@ -8,25 +8,33 @@ import Pane from 'react-split-pane/lib/Pane';
 import { ControlledEditor as Editor, monaco } from '@monaco-editor/react';
 import type { editor } from 'monaco-editor';
 import { Send as SendIcon } from '@material-ui/icons';
-import '../../css/react-split-pane.css';
 import editorTypes from '!!raw-loader!../../assets/challengelib.d.ts';
+import { SiteSettings } from './App';
+import { useHistory } from 'react-router-dom';
+import { useDialog } from '../components/DialogProvider';
+import { Challenge } from '../types/challenge';
 
 const useStyles = makeStyles(theme => ({
     root: {
         padding: theme.spacing(2),
         display: "flex",
         flexDirection: "column",
-        flexGrow: 1
+        flexGrow: 1,
+        maxHeight: `calc(100vh - 64px)`
     },
     editors: {
         flexGrow: 1
     },
     codeContainer: {
+        ...(theme.palette.type === 'dark' ? {
+            color: '#d4d4d4',
+            backgroundColor: '#202124',
+        } : {}),
         margin: theme.spacing(2),
         padding: theme.spacing(2),
         display: "flex",
         flexDirection: "column",
-        height: `calc(50% - ${theme.spacing(3)}px)`
+        height: `calc(50% - ${theme.spacing(3)}px)`,
     },
     challengeControlsHeader: {
         display: "flex",
@@ -61,8 +69,10 @@ monaco.init().then(async monaco => {
     monaco.languages.typescript.javascriptDefaults.addExtraLib(editorTypes, "challengelib.d.ts");
 });
 
-export const CreateChallenge: FunctionComponent = () => {
+export const CreateChallenge: FunctionComponent<{siteSettings: SiteSettings}> = ({siteSettings}) => {
     const classes = useStyles();
+    const history = useHistory();
+    const [openDialog, closeDialog] = useDialog();
 
     const [title, setTitle] = useState("New Challenge");
 
@@ -88,6 +98,36 @@ In this challenge, you will have to write a Hello, World function.
 `// The tests will fail if any error is thrown
 console.assert(helloWorld() == "Hello, World!");`);
 
+    async function publish() {
+        const response = await fetch('/api/challenge', {
+            method: "POST",
+            body: JSON.stringify({
+                title,
+                description,
+                starterCode,
+                solution,
+                tests
+            } as Omit<Challenge, 'author'>)
+        });
+        if (response.ok) {
+            const body = await response.json();
+            history.push(`/challenge/${body.id}`);
+        }
+        else {
+            openDialog({
+                children: <>
+                    <DialogTitle>Publish Failed</DialogTitle>
+                    <DialogContent>
+                        {await response.text() ?? "An unexpected error occurred"}
+                    </DialogContent>
+                    <DialogActions>
+                        <Button color="secondary" onClick={closeDialog}>Close</Button>
+                    </DialogActions>
+                </>
+            });
+        }
+    }
+
     const editorOptions: editor.IEditorConstructionOptions = {
         minimap: { enabled: false },
         renderLineHighlight: "none",
@@ -106,7 +146,7 @@ console.assert(helloWorld() == "Hello, World!");`);
                     value={title}
                     onChange={handleChange(setTitle)}
                 />
-                <span><Button variant="contained" color="secondary" size="large" endIcon={<SendIcon/>}>Publish</Button></span>
+                <span><Button variant="contained" color="secondary" size="large" endIcon={<SendIcon/>} onClick={publish}>Publish</Button></span>
             </div>
             <SplitPane className={classes.editors} split="vertical" onChange={() => editors.forEach(x => x.layout())}>
                 <Pane minSize="300px">
@@ -115,6 +155,7 @@ console.assert(helloWorld() == "Hello, World!");`);
                         <Typography className={classes.sectionCaption} variant="caption" component="div">Tell the user what their objective is in precise detail</Typography>
                         <Editor
                             language="markdown"
+                            theme={siteSettings.theme}
                             options={{...editorOptions, wordWrap: 'on'}}
                             value={description}
                             onChange={handleChange(setDescription)}
@@ -126,6 +167,7 @@ console.assert(helloWorld() == "Hello, World!");`);
                         <Typography className={classes.sectionCaption} variant="caption" component="div">Give the user some code to work with when they begin</Typography>
                         <Editor
                             language="javascript"
+                            theme={siteSettings.theme}
                             options={editorOptions}
                             value={starterCode}
                             onChange={handleChange(setStarterCode)}
@@ -138,6 +180,7 @@ console.assert(helloWorld() == "Hello, World!");`);
                         <Typography className={classes.sectionCaption} variant="caption" component="div">Provide a working solution to your challenge. The user will not see this</Typography>
                         <Editor
                             language="javascript"
+                            theme={siteSettings.theme}
                             options={editorOptions}
                             value={solution}
                             onChange={handleChange(setSolution)}
@@ -149,6 +192,7 @@ console.assert(helloWorld() == "Hello, World!");`);
                         <Typography className={classes.sectionCaption} variant="caption" component="div">Provide some code to verify that the user's solution is correct</Typography>
                         <Editor
                             language="javascript"
+                            theme={siteSettings.theme}
                             options={editorOptions}
                             value={tests}
                             onChange={handleChange(setTests)}
